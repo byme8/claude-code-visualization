@@ -389,6 +389,19 @@
             background: #1f2937;
         }
 
+        /* Command content styling */
+        .command-content {
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin: 4px 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.8em;
+            color: #fbbf24;
+            border-left: 3px solid #f59e0b;
+        }
+
         .interruption-message {
             margin: 8px 0;
             padding: 6px 12px;
@@ -402,6 +415,42 @@
             margin-left: auto;
             margin-right: auto;
             font-weight: 500;
+        }
+
+        .command-message-container {
+            margin: 8px 0;
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .command-header {
+            padding: 6px 12px;
+            background: #451a03;
+            border-radius: 16px;
+            color: #fbbf24;
+            font-size: 0.8em;
+            text-align: center;
+            border: 1px solid #f59e0b;
+        }
+
+        .command-details {
+            margin-top: 8px;
+            padding: 8px;
+            background: #1f2937;
+            border-radius: 8px;
+            border: 1px solid #374151;
+            font-size: 0.7em;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+
+        .command-details > div {
+            margin-bottom: 4px;
+            color: #e5e7eb;
+        }
+
+        .command-details > div:last-child {
+            margin-bottom: 0;
         }
 
         /* Markdown content styling */
@@ -839,6 +888,11 @@
                 return createInterruptionMessage(message);
             }
 
+            // Special case: command messages - show as compact format
+            if (isCommandContent(content)) {
+                return createCommandMessage(message);
+            }
+
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${message.role}`;
             
@@ -878,11 +932,11 @@
             metaDiv.textContent = metaText;
             contentDiv.appendChild(metaDiv);
 
-            // Add main content (interruptions are handled separately)
+            // Add main content (interruptions and commands are handled separately)
             if (hasTextContent) {
                 const textDiv = document.createElement('div');
                 
-                // Check if content contains markdown
+                // Check content type and format accordingly
                 if (isMarkdownContent(content)) {
                     textDiv.className = 'markdown-content';
                     textDiv.innerHTML = marked.parse(content);
@@ -1014,6 +1068,52 @@
             return messageDiv;
         }
 
+        function createCommandMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'command-message-container';
+            
+            const timeStamp = formatTimestamp(message.timestamp);
+            const content = message.content || '';
+            
+            // Create header
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'command-header';
+            
+            // Extract command information
+            const commandNameMatch = content.match(/<command-name>(.*?)<\/command-name>/);
+            const commandMessageMatch = content.match(/<command-message>(.*?)<\/command-message>/);
+            const commandArgsMatch = content.match(/<command-args>(.*?)<\/command-args>/);
+            
+            const commandName = commandNameMatch ? commandNameMatch[1] : '';
+            const commandMessage = commandMessageMatch ? commandMessageMatch[1] : '';
+            const commandArgs = commandArgsMatch ? commandArgsMatch[1] : '';
+            
+            headerDiv.textContent = `${timeStamp}: 🔧 Command: ${commandName || 'Unknown'}`;
+            messageDiv.appendChild(headerDiv);
+            
+            // Add command details if available
+            if (commandMessage || commandArgs) {
+                const detailsDiv = document.createElement('div');
+                detailsDiv.className = 'command-details';
+                
+                if (commandMessage) {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.textContent = `Message: ${commandMessage}`;
+                    detailsDiv.appendChild(msgDiv);
+                }
+                
+                if (commandArgs) {
+                    const argsDiv = document.createElement('div');
+                    argsDiv.textContent = `Arguments: ${commandArgs}`;
+                    detailsDiv.appendChild(argsDiv);
+                }
+                
+                messageDiv.appendChild(detailsDiv);
+            }
+            
+            return messageDiv;
+        }
+
         function createFileOperationsElement(message) {
             const container = document.createElement('div');
             
@@ -1135,6 +1235,45 @@
             ];
             
             return markdownPatterns.some(pattern => pattern.test(content));
+        }
+
+        function isCommandContent(content) {
+            if (!content || typeof content !== 'string') return false;
+            
+            // Check for command-like patterns
+            return content.includes('<command-name>') || 
+                   content.includes('<command-message>') || 
+                   content.includes('<command-args>');
+        }
+
+        function parseCommandContent(content) {
+            if (!isCommandContent(content)) return content;
+            
+            // Extract command information using regex
+            const commandNameMatch = content.match(/<command-name>(.*?)<\/command-name>/);
+            const commandMessageMatch = content.match(/<command-message>(.*?)<\/command-message>/);
+            const commandArgsMatch = content.match(/<command-args>(.*?)<\/command-args>/);
+            
+            const commandName = commandNameMatch ? commandNameMatch[1] : '';
+            const commandMessage = commandMessageMatch ? commandMessageMatch[1] : '';
+            const commandArgs = commandArgsMatch ? commandArgsMatch[1] : '';
+            
+            // Format as a clean command display
+            let formattedCommand = '';
+            
+            if (commandName) {
+                formattedCommand += `🔧 Command: ${commandName}`;
+            }
+            
+            if (commandMessage) {
+                formattedCommand += `\nMessage: ${commandMessage}`;
+            }
+            
+            if (commandArgs) {
+                formattedCommand += `\nArguments: ${commandArgs}`;
+            }
+            
+            return formattedCommand || content;
         }
 
         // Drag and drop support
