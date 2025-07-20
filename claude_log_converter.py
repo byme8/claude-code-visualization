@@ -94,9 +94,9 @@ def is_file_update_message(content):
                     ]):
                         return True
                 elif part.get('type') == 'tool_use':
-                    # Check if it's a file editing tool
+                    # Check if it's a file editing tool or read tool
                     tool_name = part.get('name', '').lower()
-                    if tool_name in ['edit', 'write', 'multiedit', 'todowrite']:
+                    if tool_name in ['edit', 'write', 'multiedit', 'todowrite', 'read']:
                         return True
                 elif part.get('type') == 'tool_result':
                     # Check tool result content for file operations
@@ -183,6 +183,20 @@ def format_file_update(content):
                                 if len(new_str) > 97:
                                     new_str = new_str[:97] + "..."
                                 formatted_parts.append(f"```diff\n- {old_str}\n+ {new_str}\n```")
+                    elif tool_name.lower() == 'read' and file_path:
+                        # Show file reading operations
+                        filename = file_path.split('/')[-1]
+                        formatted_parts.append(f"📖 **Read**: `{filename}`")
+                        # Add read parameters if present
+                        offset = tool_input.get('offset')
+                        limit = tool_input.get('limit')
+                        if offset is not None or limit is not None:
+                            params = []
+                            if offset is not None:
+                                params.append(f"offset: {offset}")
+                            if limit is not None:
+                                params.append(f"limit: {limit}")
+                            formatted_parts.append(f"*({', '.join(params)})*")
                     elif file_path:
                         # Other file operations
                         filename = file_path.split('/')[-1]
@@ -284,7 +298,7 @@ def calculate_session_stats(lines):
                 for part in content:
                     if isinstance(part, dict) and part.get('type') == 'tool_use':
                         tool_name = part.get('name', '').lower()
-                        if tool_name in ['write', 'edit', 'multiedit']:
+                        if tool_name in ['write', 'edit', 'multiedit', 'read']:
                             stats['file_operations'] += 1
                             
         except:
@@ -425,8 +439,22 @@ def convert_log_to_markdown(jsonl_file, output_file=None, presentation_mode=Fals
                         else:
                             # In presentation mode, check if this is a file update
                             if role == 'assistant' and is_file_update_message(content):
-                                # Write file update immediately
-                                f.write(f"## 📝 File Update\n\n")
+                                # Check if this is a read operation
+                                is_read_operation = False
+                                if isinstance(content, list):
+                                    for part in content:
+                                        if isinstance(part, dict) and part.get('type') == 'tool_use':
+                                            if part.get('name', '').lower() == 'read':
+                                                is_read_operation = True
+                                                break
+                                
+                                if is_read_operation:
+                                    # Write as file read instead of file update
+                                    f.write(f"## 📖 File Read\n\n")
+                                else:
+                                    # Write as file update
+                                    f.write(f"## 📝 File Update\n\n")
+                                
                                 formatted_content = format_file_update(content)
                                 f.write(f"{formatted_content}\n\n")
                                 f.write("\n")
@@ -447,8 +475,22 @@ def convert_log_to_markdown(jsonl_file, output_file=None, presentation_mode=Fals
                         
                         # Check if this is a file update in main session
                         if presentation_mode and role == 'assistant' and is_file_update_message(content):
-                            # Write as file update instead of regular assistant message
-                            f.write(f"## 📝 File Update\n\n")
+                            # Check if this is a read operation
+                            is_read_operation = False
+                            if isinstance(content, list):
+                                for part in content:
+                                    if isinstance(part, dict) and part.get('type') == 'tool_use':
+                                        if part.get('name', '').lower() == 'read':
+                                            is_read_operation = True
+                                            break
+                            
+                            if is_read_operation:
+                                # Write as file read instead of file update
+                                f.write(f"## 📖 File Read\n\n")
+                            else:
+                                # Write as file update
+                                f.write(f"## 📝 File Update\n\n")
+                            
                             formatted_content = format_file_update(content)
                             f.write(f"{formatted_content}\n\n")
                             f.write("\n")

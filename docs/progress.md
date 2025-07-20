@@ -36,7 +36,7 @@ The script processes JSONL entries and extracts:
 - **Message metadata**: timestamps, UUIDs, session IDs, git branches
 - **Content types**: user messages, assistant responses, tool usage, tool results
 - **Session types**: main session vs. sub-sessions (sidechains)
-- **File operations**: Write, Edit, MultiEdit, TodoWrite operations
+- **File operations**: Write, Edit, MultiEdit, TodoWrite, Read operations
 
 #### 2. Content Formatting
 
@@ -49,6 +49,7 @@ The script processes JSONL entries and extracts:
 **Special Content Detection:**
 - **User Interruptions**: `[Request interrupted by user]` and `[Request interrupted by user for tool use]`
 - **File Updates**: Automatic detection of file creation/modification operations
+- **File Reads**: Detection and display of file reading operations with preview
 - **Todo Management**: Task creation and progress tracking
 
 #### 3. Presentation Modes
@@ -79,7 +80,15 @@ I there a way to add localization to them? Because right now it looks like they 
 ---
 ```
 
-#### File Update Tracking
+#### File Operation Tracking
+
+**Read Operations** - Shows file reading with metadata:
+```
+📖 File Read
+
+📖 **Read**: `package.json`
+*(offset: 50, limit: 20)*
+```
 
 **Write Operations** - Shows full file content:
 ```
@@ -142,6 +151,7 @@ Claude often spawns sub-sessions (sidechains) for specific tasks. The tool:
 **Automatic Detection:**
 - File creation via Write tool
 - File modifications via Edit/MultiEdit tools
+- File reading via Read tool with optional parameters
 - Success/failure status from tool results
 - Content preview with syntax highlighting
 
@@ -180,6 +190,32 @@ python3 claude_log_converter.py input.jsonl --presentation-mode -o clean_output.
 python3 claude_log_converter.py input.jsonl -o custom_name.md
 ```
 
+### With Secret Replacement (Recommended)
+```bash
+python3 process_with_secrets.py input.jsonl --presentation-mode -o output.md
+```
+
+## Secret Replacement System
+
+### Configuration
+Create a `secrets.local.md` file to define replacements:
+```
+appname=demo
+stanislav=user
+production.com=example.com
+```
+
+### How It Works
+1. The main converter processes the JSONL file normally
+2. The wrapper script applies all secret replacements to the final markdown
+3. All sensitive information is safely anonymized
+
+### Benefits
+- **Complete Coverage**: Replaces secrets across entire document at once
+- **Case-Insensitive**: Finds all variants of sensitive terms
+- **Safe Processing**: No secrets leaked during intermediate steps
+- **Simple Configuration**: Easy key=value format
+
 ## Key Achievements
 
 ### 1. Comprehensive Message Processing
@@ -202,13 +238,21 @@ python3 claude_log_converter.py input.jsonl -o custom_name.md
 ### 4. Developer-Friendly Output
 - Full file content for Write operations
 - Detailed diffs for Edit operations
+- Clear distinction between Read and Write operations
 - Progress tracking through todo management
 - Clean formatting optimized for documentation
 
-### 5. Flexible Usage
+### 5. Security and Privacy ✅ **NEW**
+- **Secret replacement system** for safe sharing of conversation logs
+- **Complete anonymization** of sensitive information
+- **Configurable replacements** via simple configuration file
+- **Post-processing approach** ensures 100% coverage
+
+### 6. Flexible Usage
 - Multiple output modes for different use cases
 - Configurable filtering and formatting
 - Command-line interface with clear options
+- Optional secret replacement for sensitive content
 
 ## Technical Decisions
 
@@ -234,9 +278,11 @@ Markdown provides:
 ### Potential Improvements
 1. **Search and Filter**: Add ability to search for specific content or timeframes
 2. ~~**Statistics**: Generate session statistics (files modified, tasks completed, etc.)~~ ✅ **COMPLETED**
-3. **Export Formats**: Support for HTML, PDF, or other output formats
-4. **Interactive Features**: Web interface for browsing sessions
-5. **Integration**: Direct integration with development workflows
+3. ~~**Read Operation Support**: Display file reading operations distinctly from writes~~ ✅ **COMPLETED**
+4. ~~**Secret Replacement**: Safe anonymization of sensitive information~~ ✅ **COMPLETED**
+5. **Export Formats**: Support for HTML, PDF, or other output formats
+6. **Interactive Features**: Web interface for browsing sessions
+7. **Integration**: Direct integration with development workflows
 
 ### Architecture Considerations
 - Plugin system for custom message processors
@@ -248,7 +294,8 @@ Markdown provides:
 This tool provides unprecedented visibility into Claude's development process, enabling:
 - **Better Documentation**: Automatic generation of development session reports
 - **Process Improvement**: Understanding of how Claude approaches complex tasks
-- **Knowledge Sharing**: Easy sharing of development sessions with teams
+- **Knowledge Sharing**: Safe sharing of development sessions with teams (via secret replacement)
 - **Quality Assurance**: Tracking of file modifications and task completion
+- **Security**: Anonymization of sensitive information for public sharing
 
-The development of this tool demonstrates the value of making AI development processes transparent and accessible through thoughtful tooling.
+The development of this tool demonstrates the value of making AI development processes transparent and accessible through thoughtful tooling, while maintaining security and privacy standards.
