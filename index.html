@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Conversation Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+
+        .file-input-section {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-width: 300px;
+        }
+
+        .file-input {
+            width: 100%;
+            padding: 8px;
+            border: 2px dashed #60a5fa;
+            border-radius: 6px;
+            background: #0f172a;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85em;
+        }
+
+        .file-input:hover {
+            border-color: #3b82f6;
+            background: #1e293b;
+        }
+
+        .file-input-section p {
+            color: #94a3b8;
+            font-size: 0.75em;
+            margin-top: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: #475569;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #60a5fa;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.9em;
+        }
+
+        .chat-container {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            height: 85vh;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            padding: 20px;
+            background: #0f172a;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #e2e8f0;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .message.assistant .message-avatar {
+            background: #10b981;
+            color: white;
+        }
+
+        .message-content {
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            position: relative;
+            word-wrap: break-word;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .message.user .message-content {
+            background: #3b82f6;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-content {
+            background: #374151;
+            color: #e5e7eb;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.sidechain .message-content {
+            border: 1px solid #4b5563;
+            background: #111827;
+        }
+
+        .message.sidechain.user .message-content {
+            background: #1e3a8a;
+            border-color: #3b82f6;
+        }
+
+        .message.sidechain.assistant .message-content {
+            background: #065f46;
+            border-color: #10b981;
+        }
+
+        .message-meta {
+            font-size: 0.7em;
+            opacity: 0.6;
+            margin-bottom: 4px;
+        }
+
+        .file-operation {
+            background: #451a03;
+            border: 1px solid #f59e0b;
+            border-radius: 6px;
+            padding: 8px;
+            margin: 6px 0;
+            font-size: 0.8em;
+            color: #fbbf24;
+        }
+
+        .file-operation-header {
+            font-weight: bold;
+            color: #fbbf24;
+            margin-bottom: 3px;
+        }
+
+        .file-operation.read {
+            background: #1e3a8a;
+            border-color: #3b82f6;
+            color: #93c5fd;
+        }
+
+        .file-operation.read .file-operation-header {
+            color: #93c5fd;
+        }
+
+        .file-operation.write {
+            background: #064e3b;
+            border-color: #10b981;
+            color: #6ee7b7;
+        }
+
+        .file-operation.write .file-operation-header {
+            color: #6ee7b7;
+        }
+
+        .file-operation.edit {
+            background: #451a03;
+            border-color: #f59e0b;
+            color: #fbbf24;
+        }
+
+        .file-operation.edit .file-operation-header {
+            color: #fbbf24;
+        }
+
+        .interruption {
+            background: #7f1d1d;
+            border: 1px solid #ef4444;
+            border-radius: 6px;
+            padding: 6px 8px;
+            margin: 6px 0;
+            color: #fca5a5;
+            font-weight: bold;
+            text-align: center;
+            font-size: 0.8em;
+        }
+
+        .file-only-message {
+            margin: 8px 0;
+            padding: 6px 12px;
+            background: #374151;
+            border-radius: 16px;
+            color: #9ca3af;
+            font-size: 0.8em;
+            text-align: center;
+            border: 1px solid #4b5563;
+            max-width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .file-only-message-container {
+            margin: 8px 0;
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .file-only-header {
+            padding: 6px 12px;
+            background: #374151;
+            border-radius: 16px;
+            color: #9ca3af;
+            font-size: 0.8em;
+            text-align: center;
+            border: 1px solid #4b5563;
+        }
+
+        .file-only-edits {
+            margin-top: 8px;
+            padding: 8px;
+            background: #1f2937;
+            border-radius: 8px;
+            border: 1px solid #374151;
+        }
+
+        .file-only-edit-item {
+            margin-bottom: 6px;
+            padding: 4px 6px;
+            background: #111827;
+            border-radius: 4px;
+            border: 1px solid #374151;
+            font-size: 0.7em;
+        }
+
+        .file-only-edit-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .edit-old {
+            color: #ef4444;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            margin: 0 0 2px 0;
+            padding: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: inherit;
+        }
+
+        .edit-new {
+            color: #10b981;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            margin: 0;
+            padding: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: inherit;
+        }
+
+        .file-only-content {
+            margin-top: 8px;
+            padding: 8px;
+            background: #1f2937;
+            border-radius: 8px;
+            border: 1px solid #374151;
+        }
+
+        .file-only-write-content {
+            padding: 6px;
+            background: #111827;
+            border-radius: 4px;
+            border: 1px solid #374151;
+            font-size: 0.7em;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            color: #e5e7eb;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .content-truncated {
+            margin-top: 6px;
+            padding: 4px;
+            background: #374151;
+            border-radius: 3px;
+            font-size: 0.65em;
+            color: #9ca3af;
+            text-align: center;
+            font-style: italic;
+        }
+
+        .file-only-todos {
+            margin-top: 8px;
+            padding: 8px;
+            background: #1f2937;
+            border-radius: 8px;
+            border: 1px solid #374151;
+        }
+
+        .file-only-todo-item {
+            margin-bottom: 4px;
+            padding: 4px 6px;
+            background: #111827;
+            border-radius: 4px;
+            border: 1px solid #374151;
+            font-size: 0.7em;
+            color: #e5e7eb;
+            line-height: 1.3;
+            cursor: default;
+        }
+
+        .file-only-todo-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .file-only-todo-item:hover {
+            background: #1f2937;
+        }
+
+        .interruption-message {
+            margin: 8px 0;
+            padding: 6px 12px;
+            background: #7f1d1d;
+            border-radius: 16px;
+            color: #fca5a5;
+            font-size: 0.8em;
+            text-align: center;
+            border: 1px solid #ef4444;
+            max-width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+            font-weight: 500;
+        }
+
+        /* Markdown content styling */
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3,
+        .markdown-content h4,
+        .markdown-content h5,
+        .markdown-content h6 {
+            margin: 0.5em 0 0.3em 0;
+            color: #60a5fa;
+            font-weight: 600;
+        }
+
+        .markdown-content h1 { font-size: 1.1em; }
+        .markdown-content h2 { font-size: 1.05em; }
+        .markdown-content h3 { font-size: 1em; }
+        .markdown-content h4 { font-size: 0.95em; }
+
+        .markdown-content p {
+            margin: 0.4em 0;
+            line-height: 1.4;
+        }
+
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: 0.4em 0;
+            padding-left: 1.2em;
+        }
+
+        .markdown-content li {
+            margin: 0.2em 0;
+        }
+
+        .markdown-content code {
+            background: #1f2937;
+            color: #fbbf24;
+            padding: 0.1em 0.3em;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+
+        .markdown-content pre {
+            background: #111827;
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 0.8em;
+            margin: 0.5em 0;
+            overflow-x: auto;
+            font-size: 0.8em;
+        }
+
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+            color: #e5e7eb;
+        }
+
+        .markdown-content blockquote {
+            border-left: 3px solid #60a5fa;
+            padding-left: 0.8em;
+            margin: 0.5em 0;
+            color: #d1d5db;
+            font-style: italic;
+        }
+
+        .markdown-content strong {
+            color: #f3f4f6;
+            font-weight: 600;
+        }
+
+        .markdown-content em {
+            color: #d1d5db;
+            font-style: italic;
+        }
+
+        .markdown-content a {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        .markdown-content a:hover {
+            color: #93c5fd;
+        }
+
+        .markdown-content table {
+            border-collapse: collapse;
+            margin: 0.5em 0;
+            font-size: 0.85em;
+        }
+
+        .markdown-content th,
+        .markdown-content td {
+            border: 1px solid #374151;
+            padding: 0.3em 0.5em;
+            text-align: left;
+        }
+
+        .markdown-content th {
+            background: #1f2937;
+            color: #60a5fa;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+        }
+
+        .spinner {
+            border: 3px solid #374151;
+            border-top: 3px solid #60a5fa;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .filters {
+            padding: 15px 20px;
+            background: #0f172a;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            color: #e2e8f0;
+        }
+
+        .filter-button {
+            padding: 6px 12px;
+            border: 1px solid #475569;
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s ease;
+        }
+
+        .filter-button.active {
+            background: #60a5fa;
+            color: #0f172a;
+            border-color: #60a5fa;
+        }
+
+        .filter-button:hover {
+            border-color: #60a5fa;
+            background: #374151;
+        }
+
+        @media (max-width: 768px) {
+            .file-input-section {
+                position: relative;
+                top: auto;
+                left: auto;
+                max-width: none;
+                margin-bottom: 15px;
+            }
+            
+            .message-content {
+                max-width: 85%;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="file-input-section">
+            <input type="file" id="jsonFile" accept=".json" class="file-input" />
+            <div style="margin: 8px 0; display: flex; align-items: center; gap: 8px;">
+                <span style="color: #94a3b8; font-size: 0.75em;">or</span>
+                <input type="url" id="jsonUrl" placeholder="https://example.com/file.json" 
+                       style="flex: 1; padding: 4px 8px; background: #0f172a; border: 1px solid #60a5fa; 
+                              border-radius: 4px; color: #e2e8f0; font-size: 0.75em;" />
+                <button id="loadUrl" style="padding: 4px 8px; background: #60a5fa; color: #0f172a; 
+                                           border: none; border-radius: 4px; font-size: 0.75em; cursor: pointer;">Load</button>
+            </div>
+            <p style="margin-top: 8px; color: #94a3b8; font-size: 0.75em;">
+                📁 Select JSON file • Drop files here • 🌐 Load from URL • Works with GitHub Pages
+            </p>
+        </div>
+
+        <div id="statsSection" class="hidden">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalMessages">-</div>
+                    <div class="stat-label">Total Messages</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="duration">-</div>
+                    <div class="stat-label">Duration</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="fileOps">-</div>
+                    <div class="stat-label">File Operations</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalTokens">-</div>
+                    <div class="stat-label">Est. Tokens</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="chatSection" class="hidden">
+            <div class="chat-container">
+                <div class="chat-header">
+                    <h3>💬 Conversation Timeline</h3>
+                    <span id="messageCount">0 messages</span>
+                </div>
+                <div class="filters">
+                    <span>Show:</span>
+                    <button class="filter-button active" data-filter="main">Main Session</button>
+                    <button class="filter-button" data-filter="all">Include Sidechains</button>
+                    <button class="filter-button" data-filter="file-ops">File Operations</button>
+                    <button class="filter-button" data-filter="interruptions">Interruptions</button>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Select a JSON file to start
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let conversationData = null;
+        let allMessages = [];
+        let currentFilter = 'main';
+
+        // File input handler
+        document.getElementById('jsonFile').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                loadJSONFile(file);
+            }
+        });
+
+        // URL load button handler
+        document.getElementById('loadUrl').addEventListener('click', function() {
+            const url = document.getElementById('jsonUrl').value.trim();
+            if (url) {
+                loadJSONFromURL(url);
+            }
+        });
+
+        // URL input enter key handler
+        document.getElementById('jsonUrl').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                const url = this.value.trim();
+                if (url) {
+                    loadJSONFromURL(url);
+                }
+            }
+        });
+
+        // Filter buttons
+        document.querySelectorAll('.filter-button').forEach(button => {
+            button.addEventListener('click', function() {
+                // Update active filter
+                document.querySelectorAll('.filter-button').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                currentFilter = this.dataset.filter;
+                renderMessages();
+            });
+        });
+
+        function loadJSONFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    conversationData = JSON.parse(e.target.result);
+                    displayConversation();
+                } catch (error) {
+                    alert('Error parsing JSON file: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function loadJSONFromURL(url) {
+            try {
+                // Update URL input to show loading state
+                const urlInput = document.getElementById('jsonUrl');
+                const loadButton = document.getElementById('loadUrl');
+                const originalButtonText = loadButton.textContent;
+                
+                urlInput.disabled = true;
+                loadButton.disabled = true;
+                loadButton.textContent = 'Loading...';
+
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const jsonData = await response.json();
+                conversationData = jsonData;
+                displayConversation();
+                
+                // Update URL in address bar without reloading
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('url', url);
+                window.history.pushState({}, '', newUrl);
+                
+            } catch (error) {
+                alert('Error loading JSON from URL: ' + error.message);
+            } finally {
+                // Reset UI state
+                const urlInput = document.getElementById('jsonUrl');
+                const loadButton = document.getElementById('loadUrl');
+                
+                urlInput.disabled = false;
+                loadButton.disabled = false;
+                loadButton.textContent = 'Load';
+            }
+        }
+
+        // Check for URL parameter on page load
+        function checkURLParameter() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const jsonUrl = urlParams.get('url');
+            
+            if (jsonUrl) {
+                // Decode URL if needed
+                const decodedUrl = decodeURIComponent(jsonUrl);
+                document.getElementById('jsonUrl').value = decodedUrl;
+                loadJSONFromURL(decodedUrl);
+            }
+        }
+
+        function displayConversation() {
+            if (!conversationData) return;
+
+            // Show sections
+            document.getElementById('statsSection').classList.remove('hidden');
+            document.getElementById('chatSection').classList.remove('hidden');
+
+            // Update statistics
+            updateStats();
+            
+            // Store messages
+            allMessages = conversationData.messages || [];
+            
+            // Render messages
+            renderMessages();
+        }
+
+        function updateStats() {
+            const stats = conversationData.session_stats;
+            const summary = conversationData.summary;
+
+            document.getElementById('totalMessages').textContent = stats.total_messages.toLocaleString();
+            document.getElementById('duration').textContent = summary.session_duration_formatted;
+            document.getElementById('fileOps').textContent = stats.file_operations.toLocaleString();
+            document.getElementById('totalTokens').textContent = stats.estimated_total_tokens.toLocaleString();
+        }
+
+        function renderMessages() {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageCount = document.getElementById('messageCount');
+            
+            // Filter messages
+            let filteredMessages = allMessages;
+            
+            switch(currentFilter) {
+                case 'main':
+                    filteredMessages = allMessages.filter(msg => !msg.is_sidechain);
+                    break;
+                case 'all':
+                    // Include all messages including sidechains
+                    filteredMessages = allMessages;
+                    break;
+                case 'file-ops':
+                    filteredMessages = allMessages.filter(msg => msg.has_file_operations);
+                    break;
+                case 'interruptions':
+                    filteredMessages = allMessages.filter(msg => msg.is_interruption);
+                    break;
+            }
+
+            // Clear and render, counting only messages with content
+            chatMessages.innerHTML = '';
+            let displayedCount = 0;
+
+            filteredMessages.forEach(message => {
+                // Skip messages with no meaningful content
+                const content = message.content || '';
+                if (content.trim().length > 0 || message.has_file_operations || message.is_interruption) {
+                    const messageElement = createMessageElement(message);
+                    chatMessages.appendChild(messageElement);
+                    displayedCount++;
+                }
+            });
+
+            // Update count with actual displayed messages
+            messageCount.textContent = `${displayedCount} messages`;
+
+            // Scroll to top
+            chatMessages.scrollTop = 0;
+        }
+
+        function createMessageElement(message) {
+            // Always use full content, never preview
+            const content = message.content || '';
+            const hasTextContent = content.trim().length > 0;
+            
+            // Special case: message with only file operations and no text content
+            if (message.has_file_operations && !hasTextContent && !message.is_interruption) {
+                return createFileOnlyMessage(message);
+            }
+
+            // Special case: interruption messages - show as compact format
+            if (message.is_interruption) {
+                return createInterruptionMessage(message);
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${message.role}`;
+            
+            // Add sidechain styling
+            if (message.is_sidechain) {
+                messageDiv.classList.add('sidechain');
+            }
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            
+            // Different avatars for sidechains
+            if (message.is_sidechain) {
+                avatar.textContent = message.role === 'user' ? '🔧' : '⚙️';
+                avatar.style.opacity = '0.7';
+            } else {
+                avatar.textContent = message.role === 'user' ? '👤' : '🤖';
+            }
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            // Add sidechain styling to content
+            if (message.is_sidechain) {
+                contentDiv.style.opacity = '0.8';
+                contentDiv.style.fontSize = '0.9em';
+            }
+
+            // Add metadata
+            const metaDiv = document.createElement('div');
+            metaDiv.className = 'message-meta';
+            
+            let metaText = formatTimestamp(message.timestamp);
+            if (message.is_sidechain) metaText += ' • 🔧 Sub-session';
+            if (message.estimated_tokens) metaText += ` • ~${message.estimated_tokens} tokens`;
+            
+            metaDiv.textContent = metaText;
+            contentDiv.appendChild(metaDiv);
+
+            // Add main content (interruptions are handled separately)
+            if (hasTextContent) {
+                const textDiv = document.createElement('div');
+                
+                // Check if content contains markdown
+                if (isMarkdownContent(content)) {
+                    textDiv.className = 'markdown-content';
+                    textDiv.innerHTML = marked.parse(content);
+                } else {
+                    textDiv.textContent = content;
+                }
+                
+                contentDiv.appendChild(textDiv);
+            }
+
+            // Add file operations
+            if (message.has_file_operations) {
+                const fileOpsDiv = createFileOperationsElement(message);
+                contentDiv.appendChild(fileOpsDiv);
+            }
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+
+            return messageDiv;
+        }
+
+        function createFileOnlyMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'file-only-message-container';
+            
+            const timeStamp = formatTimestamp(message.timestamp);
+            const fileOps = conversationData.file_operations.filter(op => op.message_id === message.id);
+            
+            // Create header
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'file-only-header';
+            
+            if (fileOps.length > 0) {
+                const op = fileOps[0];
+                let icon = '📝';
+                if (op.type === 'read') icon = '📖';
+                else if (op.type === 'write') icon = '✏️';
+                else if (op.type === 'edit' || op.type === 'multiedit') icon = '🔧';
+                else if (op.type === 'todowrite') icon = '📋';
+                
+                let fileOpText = `${icon} ${op.type.toUpperCase()}: ${op.file_name}`;
+                
+                if (fileOps.length > 1) {
+                    fileOpText += ` (+${fileOps.length - 1} more)`;
+                }
+                
+                headerDiv.textContent = `${timeStamp}: ${fileOpText}`;
+            }
+            
+            messageDiv.appendChild(headerDiv);
+            
+            // Add content details if available
+            if (fileOps.length > 0) {
+                const op = fileOps[0];
+                
+                // Show edit details for edit operations
+                if ((op.type === 'edit' || op.type === 'multiedit') && op.edits && op.edits.length > 0) {
+                    const editsContainer = document.createElement('div');
+                    editsContainer.className = 'file-only-edits';
+                    
+                    op.edits.forEach((edit, index) => {
+                        const editDiv = document.createElement('div');
+                        editDiv.className = 'file-only-edit-item';
+                        
+                        const oldDiv = document.createElement('pre');
+                        oldDiv.className = 'edit-old';
+                        oldDiv.textContent = `- ${edit.old_string}`;
+                        
+                        const newDiv = document.createElement('pre');
+                        newDiv.className = 'edit-new';
+                        newDiv.textContent = `+ ${edit.new_string}`;
+                        
+                        editDiv.appendChild(oldDiv);
+                        editDiv.appendChild(newDiv);
+                        editsContainer.appendChild(editDiv);
+                    });
+                    
+                    messageDiv.appendChild(editsContainer);
+                }
+                
+                // Show content preview for write operations
+                else if (op.type === 'write' && op.content_preview) {
+                    const contentContainer = document.createElement('div');
+                    contentContainer.className = 'file-only-content';
+                    
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'file-only-write-content';
+                    contentDiv.textContent = op.content_preview;
+                    
+                    contentContainer.appendChild(contentDiv);
+                    messageDiv.appendChild(contentContainer);
+                }
+                
+                // Show todos for todowrite operations
+                else if (op.type === 'todowrite' && op.todos && op.todos.length > 0) {
+                    const todosContainer = document.createElement('div');
+                    todosContainer.className = 'file-only-todos';
+                    
+                    op.todos.forEach((todo, index) => {
+                        const todoDiv = document.createElement('div');
+                        todoDiv.className = 'file-only-todo-item';
+                        
+                        // Create single line with status, priority, and content
+                        const statusIcon = todo.status === 'completed' ? '✅' : 
+                                         todo.status === 'in_progress' ? '🔄' : '⏳';
+                        const priorityIcon = todo.priority === 'high' ? '🔴' :
+                                           todo.priority === 'medium' ? '🟡' : '🟢';
+                        
+                        todoDiv.textContent = `${statusIcon} ${priorityIcon} ${todo.content}`;
+                        todoDiv.title = `Status: ${todo.status} | Priority: ${todo.priority}`; // Tooltip
+                        todosContainer.appendChild(todoDiv);
+                    });
+                    
+                    messageDiv.appendChild(todosContainer);
+                }
+            }
+            
+            return messageDiv;
+        }
+
+        function createInterruptionMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'interruption-message';
+            
+            const timeStamp = formatTimestamp(message.timestamp);
+            messageDiv.textContent = `${timeStamp}: 🛑 Request interrupted by user`;
+            
+            return messageDiv;
+        }
+
+        function createFileOperationsElement(message) {
+            const container = document.createElement('div');
+            
+            // Find relevant file operations
+            const fileOps = conversationData.file_operations.filter(op => op.message_id === message.id);
+            
+            fileOps.forEach(op => {
+                const opDiv = document.createElement('div');
+                opDiv.className = `file-operation ${op.type}`;
+
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'file-operation-header';
+                
+                let icon = '📝';
+                if (op.type === 'read') icon = '📖';
+                else if (op.type === 'write') icon = '✏️';
+                else if (op.type === 'edit' || op.type === 'multiedit') icon = '🔧';
+                else if (op.type === 'todowrite') icon = '📋';
+
+                headerDiv.textContent = `${icon} ${op.type.toUpperCase()}: ${op.file_name}`;
+
+                const detailsDiv = document.createElement('div');
+                
+                if (op.type === 'write' && op.content_length) {
+                    detailsDiv.textContent = `${op.content_length} characters written`;
+                } else if (op.type === 'edit' || op.type === 'multiedit') {
+                    detailsDiv.textContent = `${op.edit_count} edit(s) made`;
+                    
+                    // Show edit details if available
+                    if (op.edits && op.edits.length > 0) {
+                        const editsContainer = document.createElement('div');
+                        editsContainer.style.marginTop = '8px';
+                        editsContainer.style.fontSize = '0.75em';
+                        
+                        op.edits.forEach((edit, index) => {
+                            const editDiv = document.createElement('div');
+                            editDiv.style.marginBottom = '6px';
+                            editDiv.style.padding = '4px 6px';
+                            editDiv.style.background = '#1f2937';
+                            editDiv.style.borderRadius = '4px';
+                            editDiv.style.border = '1px solid #374151';
+                            
+                            const oldDiv = document.createElement('pre');
+                            oldDiv.style.color = '#ef4444';
+                            oldDiv.style.fontFamily = 'monospace';
+                            oldDiv.style.margin = '0 0 2px 0';
+                            oldDiv.style.padding = '0';
+                            oldDiv.style.whiteSpace = 'pre-wrap';
+                            oldDiv.style.wordWrap = 'break-word';
+                            oldDiv.style.fontSize = 'inherit';
+                            oldDiv.textContent = `- ${edit.old_string}`;
+                            
+                            const newDiv = document.createElement('pre');
+                            newDiv.style.color = '#10b981';
+                            newDiv.style.fontFamily = 'monospace';
+                            newDiv.style.margin = '0';
+                            newDiv.style.padding = '0';
+                            newDiv.style.whiteSpace = 'pre-wrap';
+                            newDiv.style.wordWrap = 'break-word';
+                            newDiv.style.fontSize = 'inherit';
+                            newDiv.textContent = `+ ${edit.new_string}`;
+                            
+                            editDiv.appendChild(oldDiv);
+                            editDiv.appendChild(newDiv);
+                            editsContainer.appendChild(editDiv);
+                        });
+                        
+                        detailsDiv.appendChild(editsContainer);
+                    }
+                } else if (op.type === 'read') {
+                    let readDetails = 'File content read';
+                    if (op.offset !== null || op.limit !== null) {
+                        readDetails += ` (offset: ${op.offset || 0}, limit: ${op.limit || 'none'})`;
+                    }
+                    detailsDiv.textContent = readDetails;
+                } else if (op.type === 'todowrite' && op.todo_count) {
+                    detailsDiv.textContent = `${op.todo_count} todo(s) created/updated`;
+                }
+
+                opDiv.appendChild(headerDiv);
+                if (detailsDiv.textContent || detailsDiv.children.length > 0) {
+                    opDiv.appendChild(detailsDiv);
+                }
+
+                container.appendChild(opDiv);
+            });
+
+            return container;
+        }
+
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return '';
+            
+            try {
+                const date = new Date(timestamp);
+                return date.toLocaleTimeString();
+            } catch (e) {
+                return timestamp;
+            }
+        }
+
+        function isMarkdownContent(content) {
+            if (!content || typeof content !== 'string') return false;
+            
+            // Check for common markdown patterns
+            const markdownPatterns = [
+                /^#{1,6}\s+/m,           // Headers (#, ##, ###, etc.)
+                /\*\*.*?\*\*/,           // Bold text
+                /\*.*?\*/,               // Italic text
+                /`.*?`/,                 // Inline code
+                /```[\s\S]*?```/,        // Code blocks
+                /^\s*[-*+]\s+/m,         // Lists
+                /^\s*\d+\.\s+/m,         // Numbered lists
+                /\[.*?\]\(.*?\)/,        // Links
+                /^\s*>\s+/m,             // Blockquotes
+                /\|.*\|/,                // Tables
+                /^---+$/m,               // Horizontal rules
+                /\n\n/                   // Multiple line breaks (common in markdown)
+            ];
+            
+            return markdownPatterns.some(pattern => pattern.test(content));
+        }
+
+        // Drag and drop support
+        const fileInput = document.getElementById('jsonFile');
+        const fileInputSection = document.querySelector('.file-input-section');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            fileInputSection.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            fileInputSection.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            fileInputSection.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            fileInputSection.style.borderColor = '#7c3aed';
+            fileInputSection.style.background = '#f1f5f9';
+        }
+
+        function unhighlight(e) {
+            fileInputSection.style.borderColor = '#4f46e5';
+            fileInputSection.style.background = '#f8fafc';
+        }
+
+        fileInputSection.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            if (files.length > 0) {
+                loadJSONFile(files[0]);
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            checkURLParameter();
+        });
+    </script>
+</body>
+</html>

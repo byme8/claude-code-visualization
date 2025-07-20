@@ -192,7 +192,11 @@ python3 claude_log_converter.py input.jsonl -o custom_name.md
 
 ### With Secret Replacement (Recommended)
 ```bash
+# For Markdown output
 python3 process_with_secrets.py input.jsonl --presentation-mode -o output.md
+
+# For JSON output (for visualization)
+python3 process_json_with_secrets.py input.jsonl -o output.json
 ```
 
 ## Secret Replacement System
