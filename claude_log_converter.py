@@ -370,23 +370,25 @@ def convert_log_to_markdown(jsonl_file, output_file=None, presentation_mode=Fals
         
         with open(output_path, 'w', encoding='utf-8') as f:
             # Write header with session statistics
-            f.write(f"# Claude Conversation Log\n\n")
-            f.write(f"## Session Statistics\n\n")
-            f.write(f"**Source File:** `{input_path.name}`\n")
-            f.write(f"**Converted:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"**Session Duration:** {stats['session_duration'] or 'Unknown'}\n")
-            f.write(f"**Total Messages:** {stats['total_messages']}\n")
-            f.write(f"**User Messages:** {stats['user_messages']}\n")
-            f.write(f"**Assistant Messages:** {stats['assistant_messages']}\n")
-            f.write(f"**File Operations:** {stats['file_operations']}\n")
-            f.write(f"**Estimated Input Tokens:** {stats['estimated_input_tokens']:,}\n")
-            f.write(f"**Estimated Output Tokens:** {stats['estimated_output_tokens']:,}\n")
-            f.write(f"**Estimated Total Tokens:** {stats['estimated_total_tokens']:,}\n")
-            if stats['start_time']:
-                f.write(f"**Session Start:** {format_timestamp(stats['start_time'])}\n")
-            if stats['end_time']:
-                f.write(f"**Session End:** {format_timestamp(stats['end_time'])}\n")
-            f.write("\n---\n\n")
+            f.write(f"# 🤖 Claude Conversation Log\n\n")
+            f.write(f"> **Source:** `{input_path.name}` | **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            
+            # Session statistics in a table for better GitHub rendering
+            f.write("## 📊 Session Statistics\n\n")
+            f.write("| Metric | Value |\n")
+            f.write("|--------|-------|\n")
+            f.write(f"| **⏱️ Duration** | {stats['session_duration'] or 'Unknown'} |\n")
+            f.write(f"| **💬 Total Messages** | {stats['total_messages']:,} |\n")
+            f.write(f"| **👤 User Messages** | {stats['user_messages']:,} |\n")
+            f.write(f"| **🤖 Assistant Messages** | {stats['assistant_messages']:,} |\n")
+            f.write(f"| **📝 File Operations** | {stats['file_operations']:,} |\n")
+            f.write(f"| **📥 Input Tokens** | {stats['estimated_input_tokens']:,} |\n")
+            f.write(f"| **📤 Output Tokens** | {stats['estimated_output_tokens']:,} |\n")
+            f.write(f"| **🔢 Total Tokens** | {stats['estimated_total_tokens']:,} |\n")
+            if stats['start_time'] and stats['end_time']:
+                f.write(f"| **🚀 Session Start** | {format_timestamp(stats['start_time'])} |\n")
+                f.write(f"| **🏁 Session End** | {format_timestamp(stats['end_time'])} |\n")
+            f.write("\n")
             sidechain_messages = []
             
             for i, line in enumerate(lines):
@@ -424,10 +426,10 @@ def convert_log_to_markdown(jsonl_file, output_file=None, presentation_mode=Fals
                             # In presentation mode, check if this is a file update
                             if role == 'assistant' and is_file_update_message(content):
                                 # Write file update immediately
-                                f.write(f"📝 File Update\n\n")
+                                f.write(f"## 📝 File Update\n\n")
                                 formatted_content = format_file_update(content)
                                 f.write(f"{formatted_content}\n\n")
-                                f.write("---\n\n")
+                                f.write("\n")
                         # Skip other sidechain messages if presentation_mode is True
                     else:
                         # First, write any accumulated sidechain messages
@@ -440,16 +442,16 @@ def convert_log_to_markdown(jsonl_file, output_file=None, presentation_mode=Fals
                                 elif sc_msg['role'] == 'assistant':
                                     f.write(f"**Response:** {sc_msg['formatted_content']}\n\n")
                             
-                            f.write("---\n\n")
+                            f.write("\n")
                             sidechain_messages = []
                         
                         # Check if this is a file update in main session
                         if presentation_mode and role == 'assistant' and is_file_update_message(content):
                             # Write as file update instead of regular assistant message
-                            f.write(f"📝 File Update\n\n")
+                            f.write(f"## 📝 File Update\n\n")
                             formatted_content = format_file_update(content)
                             f.write(f"{formatted_content}\n\n")
-                            f.write("---\n\n")
+                            f.write("\n")
                             continue
                         
                         # Write content first to check if it's empty
@@ -468,33 +470,33 @@ def convert_log_to_markdown(jsonl_file, output_file=None, presentation_mode=Fals
                         )
                         
                         if is_short_message:
-                            # Write as inline format
+                            # Write as inline format with better styling
                             if role == 'user':
-                                f.write(f"👤 User> {formatted_content.strip()}\n\n")
+                                f.write(f"### 👤 User\n> {formatted_content.strip()}\n\n")
                             elif role == 'assistant':
-                                f.write(f"🤖 Assistant> {formatted_content.strip()}\n\n")
+                                f.write(f"### 🤖 Assistant\n> {formatted_content.strip()}\n\n")
                             else:
-                                f.write(f"{role.title()}> {formatted_content.strip()}\n\n")
+                                f.write(f"### {role.title()}\n> {formatted_content.strip()}\n\n")
                         else:
-                            # Write block format without ## headers
+                            # Write block format with proper headers
                             if role == 'user':
-                                f.write(f"👤 User\n\n")
+                                f.write(f"### 👤 User\n\n")
                             elif role == 'assistant':
-                                f.write(f"🤖 Assistant\n\n")
+                                f.write(f"### 🤖 Assistant\n\n")
                             else:
-                                f.write(f"{role.title()}\n\n")
+                                f.write(f"### {role.title()}\n\n")
                             
                             f.write(f"{formatted_content}\n\n")
                         
-                        f.write("---\n\n")
+                        f.write("\n")
                     
                 except json.JSONDecodeError as e:
                     f.write(f"## Error parsing line {i+1}\n\n")
                     f.write(f"```\n{line.strip()}\n```\n\n")
-                    f.write(f"Error: {e}\n\n---\n\n")
+                    f.write(f"Error: {e}\n\n")
                 except Exception as e:
                     f.write(f"## Error processing line {i+1}\n\n")
-                    f.write(f"Error: {e}\n\n---\n\n")
+                    f.write(f"Error: {e}\n\n")
             
             # Write any remaining sidechain messages at the end
             if sidechain_messages and not presentation_mode:
@@ -506,7 +508,7 @@ def convert_log_to_markdown(jsonl_file, output_file=None, presentation_mode=Fals
                     elif sc_msg['role'] == 'assistant':
                         f.write(f"**Response:** {sc_msg['formatted_content']}\n\n")
                 
-                f.write("---\n\n")
+                f.write("\n")
         
         print(f"Successfully converted {message_count} messages to {output_path}")
         return True
